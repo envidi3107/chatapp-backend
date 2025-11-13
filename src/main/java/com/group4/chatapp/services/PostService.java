@@ -1,5 +1,6 @@
 package com.group4.chatapp.services;
 
+import com.fasterxml.jackson.core.type.TypeReference;
 import com.group4.chatapp.dtos.ReactionResponseDto;
 import com.group4.chatapp.dtos.attachment.PostAttachmentResponseDto;
 import com.group4.chatapp.dtos.post.PostRequestDto;
@@ -18,6 +19,7 @@ import org.springframework.messaging.simp.SimpMessagingTemplate;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.time.Duration;
 import java.util.*;
 import java.util.stream.Stream;
 
@@ -38,8 +40,7 @@ public class PostService {
     private ReactionRepository reactionRepository;
     private NotificationService notificationService;
     private SearchHistoryService searchHistoryService;
-
-    private SimpMessagingTemplate simpMessagingTemplate;
+    private RedisService redisService;
 
     public Post getPost(Long postId) {
         return postRepository.findById(postId).orElseThrow(() -> new ApiException(
@@ -199,23 +200,39 @@ public class PostService {
                 latestFriendPosts.add(posts.getFirst());
             }
         }
-        List<Post> topPostViews = postRepository.getPostsByTopViews(authUser.getId(), PageRequest.of(page - 1, 10));
+        String POST_TOP_KEY_CACHE = "post:top:page_" + page;
+        List<PostResponseDto> topPostViewsCached = redisService.getValue(POST_TOP_KEY_CACHE, new TypeReference<>() {});
+        List<PostResponseDto> topPostViewsDtos;
+        if (topPostViewsCached != null) {
+            topPostViewsDtos = topPostViewsCached;
+        } else {
+            List<Post> topPostViews = postRepository.getPostsByTopViews(authUser.getId(), PageRequest.of(page - 1, 10));
 
-        List<Post> newsFeeds = Stream.concat(
-                latestFriendPosts.stream(),
-                topPostViews.stream()
+            topPostViewsDtos = topPostViews.stream().map(post -> {
+                List<ReactionType> topReactionTypes = getTopReactionType(post.getId(), TargetType.POST);
+                ReactionType reactionType = getUserReaction(post.getId(), TargetType.POST, post.getUser().getId());
+                return new PostResponseDto(post, topReactionTypes, reactionType);
+            }).toList();
+
+            redisService.saveValue(POST_TOP_KEY_CACHE, topPostViewsDtos, Duration.ofMinutes(10));
+        }
+
+        List<PostResponseDto> newsFeeds = Stream.concat(
+                latestFriendPosts.stream().map(post -> {
+                    List<ReactionType> topReactionTypes = getTopReactionType(post.getId(), TargetType.POST);
+                    ReactionType reactionType = getUserReaction(post.getId(), TargetType.POST, post.getUser().getId());
+                    return new PostResponseDto(post, topReactionTypes, reactionType);
+                }),
+                topPostViewsDtos.stream()
         ).toList();
 
         Set<Long> seenKeys = new HashSet<>();
         List<PostResponseDto> postResponseDtos = new ArrayList<>();
-        for (Post post : newsFeeds) {
+        for (PostResponseDto post : newsFeeds) {
             Long key = post.getId();
             if (!seenKeys.contains(key)) {
                 seenKeys.add(key);
-
-                List<ReactionType> topReactionTypes = getTopReactionType(post.getId(), TargetType.POST);
-                ReactionType reactionType = getUserReaction(post.getId(), TargetType.POST, post.getUser().getId());
-                postResponseDtos.add(new PostResponseDto(post, topReactionTypes, reactionType));
+                postResponseDtos.add(post);
             }
         }
         Collections.shuffle(postResponseDtos);

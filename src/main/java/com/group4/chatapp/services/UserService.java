@@ -13,6 +13,7 @@ import com.group4.chatapp.repositories.*;
 import com.group4.chatapp.services.invitations.InvitationCheckService;
 import lombok.RequiredArgsConstructor;
 import lombok.experimental.FieldDefaults;
+import org.springframework.cache.annotation.Cacheable;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Sort;

@@ -21,6 +21,8 @@ dependencies {
     implementation("org.springframework.boot:spring-boot-starter-validation")
     implementation("org.springframework.boot:spring-boot-starter-web")
     implementation("org.springframework.boot:spring-boot-starter-websocket")
+    implementation("org.springframework.data:spring-data-redis:3.5.4")
+    implementation("io.lettuce:lettuce-core:6.7.1.RELEASE")
 
     implementation("com.cloudinary:cloudinary:1.0.14")
     implementation("org.springdoc:springdoc-openapi-starter-webmvc-ui:2.8.6")
