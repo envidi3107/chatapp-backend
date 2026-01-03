@@ -9,7 +9,6 @@ import org.springframework.web.multipart.MultipartFile;
 @AllArgsConstructor
 @Data
 public class UploadFileDto {
-        private String description;
-        private MultipartFile file;
+  private String description;
+  private MultipartFile file;
 }
-

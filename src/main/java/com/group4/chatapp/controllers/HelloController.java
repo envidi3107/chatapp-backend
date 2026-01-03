@@ -10,19 +10,19 @@ import org.springframework.web.bind.annotation.RestController;
 @RequiredArgsConstructor
 public class HelloController {
 
-    private final UserService userService;
+  private final UserService userService;
 
-    @GetMapping("/api/v1/hello/")
-    public GreetingDto greeting() {
+  @GetMapping("/api/v1/hello/")
+  public GreetingDto greeting() {
 
-        var user = userService.getUserByContext();
+    var user = userService.getUserByContext();
 
-        String message = "Hello, world!";
-        if (user.isPresent()) {
-            String username = user.get().getUsername();
-            message = String.format("Hello, your username is %s.", username);
-        }
-
-        return new GreetingDto(message);
+    String message = "Hello, world!";
+    if (user.isPresent()) {
+      String username = user.get().getUsername();
+      message = String.format("Hello, your username is %s.", username);
     }
+
+    return new GreetingDto(message);
+  }
 }

@@ -1,16 +1,15 @@
 package com.group4.chatapp.models;
 
 import jakarta.persistence.*;
+import java.sql.Timestamp;
+import java.util.Collection;
+import java.util.List;
+import java.util.Objects;
 import lombok.*;
 import org.hibernate.annotations.CreationTimestamp;
 import org.springframework.lang.Nullable;
 import org.springframework.security.core.GrantedAuthority;
 import org.springframework.security.core.userdetails.UserDetails;
-
-import java.sql.Timestamp;
-import java.util.Collection;
-import java.util.List;
-import java.util.Objects;
 
 @Entity
 @Table(name = "users")
@@ -20,61 +19,59 @@ import java.util.Objects;
 @NoArgsConstructor
 @AllArgsConstructor
 public class User implements UserDetails {
-    @Id
-    @GeneratedValue(strategy = GenerationType.IDENTITY)
-    private Long id;
+  @Id
+  @GeneratedValue(strategy = GenerationType.IDENTITY)
+  private Long id;
 
-    @Column(unique = true, nullable = false)
-    private String username;
+  @Column(unique = true, nullable = false)
+  private String username;
 
-    @Column(nullable = false)
-    private String password;
+  @Column(nullable = false)
+  private String password;
 
-    @Nullable
-    private String avatar;
+  @Nullable private String avatar;
 
-    @Nullable
-    @Column(name = "cover_picture")
-    private String coverPicture;
+  @Nullable
+  @Column(name = "cover_picture")
+  private String coverPicture;
 
-    @Nullable
-    private String bio;
+  @Nullable private String bio;
 
-    @CreationTimestamp
-    @Column(name = "created_at")
-    private Timestamp createdAt;
+  @CreationTimestamp
+  @Column(name = "created_at")
+  private Timestamp createdAt;
 
-    @Column(name = "is_online")
-    @Builder.Default
-    private Boolean isOnline = false;
+  @Column(name = "is_online")
+  @Builder.Default
+  private Boolean isOnline = false;
 
-    @Column(name = "last_online")
-    private Timestamp lastOnline;
+  @Column(name = "last_online")
+  private Timestamp lastOnline;
 
-    @OneToMany(mappedBy = "user", cascade = CascadeType.ALL)
-    private List<Post> posts;
+  @OneToMany(mappedBy = "user", cascade = CascadeType.ALL)
+  private List<Post> posts;
 
-    @OneToMany(mappedBy = "user", cascade = CascadeType.ALL)
-    private List<Comment> comments;
+  @OneToMany(mappedBy = "user", cascade = CascadeType.ALL)
+  private List<Comment> comments;
 
-    @OneToMany(mappedBy = "user", cascade = CascadeType.ALL)
-    private List<Reaction> reactions;
+  @OneToMany(mappedBy = "user", cascade = CascadeType.ALL)
+  private List<Reaction> reactions;
 
-    @OneToMany(mappedBy = "leader", cascade = CascadeType.ALL)
-    private List<ChatRoom> chatRooms;
+  @OneToMany(mappedBy = "leader", cascade = CascadeType.ALL)
+  private List<ChatRoom> chatRooms;
 
-    @Override
-    public Collection<? extends GrantedAuthority> getAuthorities() {
-        return List.of();
+  @Override
+  public Collection<? extends GrantedAuthority> getAuthorities() {
+    return List.of();
+  }
+
+  @Override
+  public boolean equals(@Nullable Object obj) {
+
+    if (obj instanceof User user) {
+      return Objects.equals(this.id, user.id);
+    } else {
+      return false;
     }
-
-    @Override
-    public boolean equals(@Nullable Object obj) {
-
-        if (obj instanceof User user) {
-            return Objects.equals(this.id, user.id);
-        } else {
-            return false;
-        }
-    }
+  }
 }

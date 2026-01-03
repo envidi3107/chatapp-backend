@@ -12,11 +12,20 @@ import lombok.NoArgsConstructor;
 @AllArgsConstructor
 @NoArgsConstructor
 public class ReactionResponseDto {
-    private UserWithRelationDto relation;
-    private ReactionType reacted;
+  private UserWithRelationDto relation;
+  private ReactionType reacted;
 
-    public ReactionResponseDto(User user, Long totalFollowers, Long totalFollowing, Long totalPosts, Long totalFriends, Invitation invitation, ReactionType reactionType) {
-        this.relation = new UserWithRelationDto(user, totalFollowers, totalFollowing, totalPosts, totalFriends, invitation);
-        this.reacted = reactionType;
-    }
+  public ReactionResponseDto(
+      User user,
+      Long totalFollowers,
+      Long totalFollowing,
+      Long totalPosts,
+      Long totalFriends,
+      Invitation invitation,
+      ReactionType reactionType) {
+    this.relation =
+        new UserWithRelationDto(
+            user, totalFollowers, totalFollowing, totalPosts, totalFriends, invitation);
+    this.reacted = reactionType;
+  }
 }

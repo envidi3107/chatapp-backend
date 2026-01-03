@@ -3,17 +3,16 @@ package com.group4.chatapp.repositories;
 import com.group4.chatapp.dtos.ChatRoomDto;
 import com.group4.chatapp.dtos.user.UserWithAvatarDto;
 import com.group4.chatapp.models.ChatRoom;
-import com.group4.chatapp.models.User;
+import java.util.List;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.stereotype.Repository;
 
-import java.util.List;
-
 @Repository
 public interface ChatRoomRepository extends JpaRepository<ChatRoom, Long> {
 
-    @Query("""
+  @Query(
+      """
         select new com.group4.chatapp.dtos.ChatRoomDto(r, msg)
         from ChatRoom r
         inner join r.members mem
@@ -28,34 +27,38 @@ public interface ChatRoomRepository extends JpaRepository<ChatRoom, Long> {
             )
         )
     """)
-    List<ChatRoomDto> findWithLatestMessage(long userId);
+  List<ChatRoomDto> findWithLatestMessage(long userId);
 
-    @Query("""
+  @Query(
+      """
         SELECT new com.group4.chatapp.dtos.user.UserWithAvatarDto(members)
         FROM ChatRoom c
         INNER JOIN c.members members
         WHERE c.id = ?1
     """)
-    List<UserWithAvatarDto> findChatRoomWithUsername (long roomId);
+  List<UserWithAvatarDto> findChatRoomWithUsername(long roomId);
 
-    @Query("""
+  @Query(
+      """
         select (count(c) > 0)
         from ChatRoom c
         inner join c.members members
         where members.id = ?1 and c.id = ?2
     """)
-    boolean userIsMemberInChatRoom(long userId, long roomId);
+  boolean userIsMemberInChatRoom(long userId, long roomId);
 
-    @Query("""
+  @Query(
+      """
         select (count(c) > 0)
         from ChatRoom c
         inner join c.members a
         inner join c.members b
         where a.id = ?1 and b.id = ?2 and c.type = ?3
     """)
-    boolean usersShareRoomOfType(long id1, long id2, ChatRoom.Type type);
+  boolean usersShareRoomOfType(long id1, long id2, ChatRoom.Type type);
 
-    @Query("""
+  @Query(
+      """
             SELECT DISTINCT cr
             FROM ChatRoom cr
             JOIN cr.members m1
@@ -64,9 +67,10 @@ public interface ChatRoomRepository extends JpaRepository<ChatRoom, Long> {
                   AND m1.id = :authUserId
                   AND m2.id = :otherUserId
             """)
-    ChatRoom findDuoChatRoom(Long authUserId, Long otherUserId);
+  ChatRoom findDuoChatRoom(Long authUserId, Long otherUserId);
 
-    @Query("""
+  @Query(
+      """
             select new com.group4.chatapp.dtos.ChatRoomDto(r, msg)
             from ChatRoom r
             inner join r.members mem
@@ -82,5 +86,5 @@ public interface ChatRoomRepository extends JpaRepository<ChatRoom, Long> {
                     )
             )
             """)
-    List<ChatRoomDto> findWaitingRoom(Long userId);
+  List<ChatRoomDto> findWaitingRoom(Long userId);
 }

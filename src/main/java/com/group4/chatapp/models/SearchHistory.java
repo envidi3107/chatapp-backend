@@ -10,17 +10,16 @@ import lombok.*;
 @NoArgsConstructor
 @AllArgsConstructor
 public class SearchHistory {
-    @Id
-    @GeneratedValue(strategy = GenerationType.IDENTITY)
-    private Long id;
+  @Id
+  @GeneratedValue(strategy = GenerationType.IDENTITY)
+  private Long id;
 
-    @Column(nullable = false)
-    private String keyword;
+  @Column(nullable = false)
+  private String keyword;
 
-    @Builder.Default
-    private int frequency = 1;
+  @Builder.Default private int frequency = 1;
 
-    @ManyToOne(optional = false)
-    @JoinColumn(name = "user_id")
-    private User user;
+  @ManyToOne(optional = false)
+  @JoinColumn(name = "user_id")
+  private User user;
 }

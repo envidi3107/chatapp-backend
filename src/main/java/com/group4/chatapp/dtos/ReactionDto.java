@@ -11,10 +11,7 @@ import lombok.*;
 @NoArgsConstructor
 @Builder
 public class ReactionDto {
-    @NotNull
-    private Long targetId;
-    @NotBlank
-    private TargetType targetType;
-    @NotBlank
-    private ReactionType reactionType;
+  @NotNull private Long targetId;
+  @NotBlank private TargetType targetType;
+  @NotBlank private ReactionType reactionType;
 }

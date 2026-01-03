@@ -1,36 +1,38 @@
 package com.group4.chatapp.repositories;
 
 import com.group4.chatapp.models.Notification;
+import java.util.List;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.stereotype.Repository;
 
-import java.util.List;
-
 @Repository
 public interface NotificationRepository extends JpaRepository<Notification, Long> {
 
-    @Query("""
+  @Query(
+      """
             SELECT n
             FROM Notification n
             WHERE n.receiver.id = ?1
             ORDER BY n.sentOn DESC
             """)
-    List<Notification> findByReceiverId(Long userId);
+  List<Notification> findByReceiverId(Long userId);
 
-    @Query("""
+  @Query(
+      """
             SELECT n
             FROM Notification n
             WHERE n.sender.id = ?1
             ORDER BY n.sentOn ASC
             """)
-    List<Notification> findOldestByReceiverId(Long userId, Pageable pageable);
+  List<Notification> findOldestByReceiverId(Long userId, Pageable pageable);
 
-    @Query("""
+  @Query(
+      """
             SELECT COUNT(n)
             FROM Notification n
             WHERE n.receiver.id = ?1
             """)
-    int countByUserId(Long userId);
+  int countByUserId(Long userId);
 }

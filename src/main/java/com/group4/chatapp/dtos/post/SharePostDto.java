@@ -12,13 +12,9 @@ import org.springframework.lang.Nullable;
 @NoArgsConstructor
 @Data
 public class SharePostDto {
-        @Nullable
-        private String caption;
-        @NotNull
-        private PostVisibilityType visibility;
-        @NotNull
-        private TargetType type;
-        @NotNull
-        private Long postId;
-        private Long attachmentId;
+  @Nullable private String caption;
+  @NotNull private PostVisibilityType visibility;
+  @NotNull private TargetType type;
+  @NotNull private Long postId;
+  private Long attachmentId;
 }

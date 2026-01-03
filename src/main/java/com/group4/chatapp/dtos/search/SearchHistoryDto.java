@@ -8,6 +8,6 @@ import lombok.NoArgsConstructor;
 @NoArgsConstructor
 @AllArgsConstructor
 public class SearchHistoryDto {
-    private String keyword;
-    private int frequency;
+  private String keyword;
+  private int frequency;
 }

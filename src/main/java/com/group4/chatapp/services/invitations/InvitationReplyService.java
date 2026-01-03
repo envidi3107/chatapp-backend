@@ -11,154 +11,132 @@ import com.group4.chatapp.repositories.ChatRoomRepository;
 import com.group4.chatapp.repositories.InvitationRepository;
 import com.group4.chatapp.services.ChatRoomService;
 import com.group4.chatapp.services.UserService;
+import java.util.ArrayList;
+import java.util.HashSet;
+import java.util.Set;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.HttpStatus;
 import org.springframework.lang.Nullable;
 import org.springframework.messaging.simp.SimpMessagingTemplate;
 import org.springframework.stereotype.Service;
 
-import java.util.ArrayList;
-import java.util.HashSet;
-import java.util.Set;
-
 @Service
 @RequiredArgsConstructor
 class InvitationReplyService {
 
-    private final UserService userService;
-    private final ChatRoomService chatRoomService;
+  private final UserService userService;
+  private final ChatRoomService chatRoomService;
 
-    private final InvitationRepository repository;
-    private final ChatRoomRepository chatRoomRepository;
+  private final InvitationRepository repository;
+  private final ChatRoomRepository chatRoomRepository;
 
-    private final SimpMessagingTemplate messagingTemplate;
+  private final SimpMessagingTemplate messagingTemplate;
 
-    private void updateInvitation(Invitation invitation, boolean isAccepted) {
+  private void updateInvitation(Invitation invitation, boolean isAccepted) {
 
-        var status = isAccepted
-            ? Invitation.Status.ACCEPTED
-            : Invitation.Status.REJECTED;
+    var status = isAccepted ? Invitation.Status.ACCEPTED : Invitation.Status.REJECTED;
 
-        invitation.setStatus(status);
-        repository.saveAndFlush(invitation);
+    invitation.setStatus(status);
+    repository.saveAndFlush(invitation);
+  }
+
+  private ChatRoom createDuoChatRoom(Invitation invitation) {
+
+    var members = Set.of(invitation.getSender(), invitation.getReceiver());
+
+    var newChatRoom = ChatRoom.builder().type(ChatRoom.Type.DUO).members(members).build();
+
+    return chatRoomRepository.save(newChatRoom);
+  }
+
+  private ChatRoom createChatGroup(Set<User> members) {
+
+    var newGroupChat = ChatRoom.builder().type(ChatRoom.Type.GROUP).members(members).build();
+
+    return chatRoomRepository.save(newGroupChat);
+  }
+
+  private void notifyUserReply(Invitation invitation, @Nullable ChatRoomDto newChatRoomDto) {
+
+    var isFriendRequest = invitation.getChatRoom() != null;
+    var needSendToMembers = isFriendRequest && invitation.isAccepted();
+
+    var receiver = new ArrayList<User>();
+
+    if (needSendToMembers) {
+      receiver.addAll(invitation.getChatRoom().getMembers());
+    } else {
+      receiver.add(invitation.getSender());
     }
 
-    private ChatRoom createDuoChatRoom(Invitation invitation) {
+    var sendObject = new InvitationWithNewRoomDto(invitation, newChatRoomDto);
 
-        var members = Set.of(
-            invitation.getSender(),
-            invitation.getReceiver()
-        );
-
-        var newChatRoom = ChatRoom.builder()
-            .type(ChatRoom.Type.DUO)
-            .members(members)
-            .build();
-
-        return chatRoomRepository.save(newChatRoom);
-    }
-
-    private ChatRoom createChatGroup(Set<User> members) {
-
-        var newGroupChat = ChatRoom.builder()
-            .type(ChatRoom.Type.GROUP)
-            .members(members)
-            .build();
-
-        return chatRoomRepository.save(newGroupChat);
-    }
-
-    private void notifyUserReply(
-        Invitation invitation,
-        @Nullable ChatRoomDto newChatRoomDto
-    ) {
-
-        var isFriendRequest = invitation.getChatRoom() != null;
-        var needSendToMembers = isFriendRequest && invitation.isAccepted();
-
-        var receiver = new ArrayList<User>();
-
-        if (needSendToMembers) {
-            receiver.addAll(invitation.getChatRoom().getMembers());
-        } else {
-            receiver.add(invitation.getSender());
-        }
-
-        var sendObject = new InvitationWithNewRoomDto(invitation, newChatRoomDto);
-
-        receiver.parallelStream()
-            .forEach(user ->
+    receiver.parallelStream()
+        .forEach(
+            user ->
                 messagingTemplate.convertAndSendToUser(
-                    user.getUsername(),
-                    "/queue/invitationReplies/",
-                    sendObject
-                )
-            );
+                    user.getUsername(), "/queue/invitationReplies/", sendObject));
+  }
+
+  private ChatRoom getNewChatRoom(Invitation invitation) {
+
+    if (invitation.isFriendRequest()) {
+      return createDuoChatRoom(invitation);
     }
 
-    private ChatRoom getNewChatRoom(Invitation invitation) {
+    var chatRoom = invitation.getChatRoom();
+    var receiver = invitation.getReceiver();
 
-        if (invitation.isFriendRequest()) {
-            return createDuoChatRoom(invitation);
-        }
+    assert chatRoom != null;
 
-        var chatRoom = invitation.getChatRoom();
-        var receiver = invitation.getReceiver();
-
-        assert chatRoom != null;
-
-        if (chatRoom.isChatGroup()) {
-            chatRoom.getMembers().add(receiver);
-            return chatRoomRepository.save(chatRoom);
-        }
-
-        var members = new HashSet<>(chatRoom.getMembers());
-        members.add(receiver);
-
-        return createChatGroup(members);
+    if (chatRoom.isChatGroup()) {
+      chatRoom.getMembers().add(receiver);
+      return chatRoomRepository.save(chatRoom);
     }
 
-    private Invitation getInvitationAndCheck(User user, long invitationId) {
+    var members = new HashSet<>(chatRoom.getMembers());
+    members.add(receiver);
 
-        var invitation = repository.findById(invitationId)
-            .orElseThrow(() -> new ApiException(
-                HttpStatus.NOT_FOUND,
-                "Invitation with provided id not found!"
-            ));
+    return createChatGroup(members);
+  }
 
-        var userIsReceiver = invitation.getReceiver().equals(user);
-        if (!userIsReceiver) {
-            throw new ApiException(
-                HttpStatus.FORBIDDEN,
-                "You aren't the receiver of the invitation!"
-            );
-        }
+  private Invitation getInvitationAndCheck(User user, long invitationId) {
 
-        if (!invitation.isPending()) {
-            throw new ApiException(
-                HttpStatus.CONFLICT,
-                "Invitation has been replied."
-            );
-        }
+    var invitation =
+        repository
+            .findById(invitationId)
+            .orElseThrow(
+                () ->
+                    new ApiException(
+                        HttpStatus.NOT_FOUND, "Invitation with provided id not found!"));
 
-        return invitation;
+    var userIsReceiver = invitation.getReceiver().equals(user);
+    if (!userIsReceiver) {
+      throw new ApiException(HttpStatus.FORBIDDEN, "You aren't the receiver of the invitation!");
     }
 
-    public ReplyResponse replyInvitation(long invitationId, boolean isAccepted) {
-
-        var user = userService.getUserOrThrows();
-        var invitation = getInvitationAndCheck(user, invitationId);
-
-        ChatRoomDto newChatRoomDto = null;
-
-        if (isAccepted) {
-            var newChatRoom = getNewChatRoom(invitation);
-            newChatRoomDto = chatRoomService.getRoomWithLatestMessage(newChatRoom);
-        }
-
-        updateInvitation(invitation, isAccepted);
-        notifyUserReply(invitation, newChatRoomDto);
-
-        return new ReplyResponse(newChatRoomDto);
+    if (!invitation.isPending()) {
+      throw new ApiException(HttpStatus.CONFLICT, "Invitation has been replied.");
     }
+
+    return invitation;
+  }
+
+  public ReplyResponse replyInvitation(long invitationId, boolean isAccepted) {
+
+    var user = userService.getUserOrThrows();
+    var invitation = getInvitationAndCheck(user, invitationId);
+
+    ChatRoomDto newChatRoomDto = null;
+
+    if (isAccepted) {
+      var newChatRoom = getNewChatRoom(invitation);
+      newChatRoomDto = chatRoomService.getRoomWithLatestMessage(newChatRoom);
+    }
+
+    updateInvitation(invitation, isAccepted);
+    notifyUserReply(invitation, newChatRoomDto);
+
+    return new ReplyResponse(newChatRoomDto);
+  }
 }

@@ -1,7 +1,6 @@
 package com.group4.chatapp.services;
 
 import com.group4.chatapp.dtos.attachment.AttachmentDto;
-import com.group4.chatapp.dtos.comment.UserCommentDto;
 import com.group4.chatapp.dtos.user.UserDto;
 import com.group4.chatapp.dtos.user.UserInformationDto;
 import com.group4.chatapp.dtos.user.UserWithAvatarDto;
@@ -11,12 +10,14 @@ import com.group4.chatapp.mappers.UserMapper;
 import com.group4.chatapp.models.*;
 import com.group4.chatapp.repositories.*;
 import com.group4.chatapp.services.invitations.InvitationCheckService;
+import java.sql.Timestamp;
+import java.time.LocalDateTime;
+import java.util.*;
+import java.util.stream.Collectors;
 import lombok.RequiredArgsConstructor;
 import lombok.experimental.FieldDefaults;
-import org.springframework.cache.annotation.Cacheable;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageRequest;
-import org.springframework.data.domain.Sort;
 import org.springframework.http.HttpStatus;
 import org.springframework.lang.Nullable;
 import org.springframework.messaging.simp.SimpMessagingTemplate;
@@ -30,306 +31,295 @@ import org.springframework.web.ErrorResponseException;
 import org.springframework.web.multipart.MultipartFile;
 import org.springframework.web.server.ResponseStatusException;
 
-import java.sql.Timestamp;
-import java.time.LocalDateTime;
-import java.util.*;
-import java.util.stream.Collectors;
-
 @Service
 @RequiredArgsConstructor
 @FieldDefaults(makeFinal = true)
 public class UserService {
-    private CloudinaryService cloudinaryService;
-    private UserRepository repository;
-    private PasswordEncoder passwordEncoder;
-    private FileTypeService fileTypeService;
-    private InvitationRepository invitationRepository;
-    private PostRepository postRepository;
-    private UserMapper userMapper;
-    private InvitationCheckService invitationCheckService;
+  private CloudinaryService cloudinaryService;
+  private UserRepository repository;
+  private PasswordEncoder passwordEncoder;
+  private FileTypeService fileTypeService;
+  private InvitationRepository invitationRepository;
+  private PostRepository postRepository;
+  private UserMapper userMapper;
+  private InvitationCheckService invitationCheckService;
 
-    private SimpMessagingTemplate messagingTemplate;
+  private SimpMessagingTemplate messagingTemplate;
 
-    public void createUser(UserDto dto) {
+  public void createUser(UserDto dto) {
 
-        if (repository.existsByUsername(dto.username())) {
-            throw new ResponseStatusException(
-                HttpStatus.CONFLICT,
-                "Username already exists. Please try a different one."
-            );
-        }
-
-        var hashedPassword = passwordEncoder.encode(dto.password());
-
-        var user = User.builder()
-            .username(dto.username())
-            .password(hashedPassword)
-            .build();
-
-        repository.save(user);
+    if (repository.existsByUsername(dto.username())) {
+      throw new ResponseStatusException(
+          HttpStatus.CONFLICT, "Username already exists. Please try a different one.");
     }
 
-    public UserInformationDto getAuthUser() {
-        User user = getUserOrThrows();
-        Long[] userStatistics = getUserStatistics(user.getId());
-        return new UserInformationDto(user, userStatistics[0], userStatistics[1], userStatistics[2], userStatistics[3]);
+    var hashedPassword = passwordEncoder.encode(dto.password());
+
+    var user = User.builder().username(dto.username()).password(hashedPassword).build();
+
+    repository.save(user);
+  }
+
+  public UserInformationDto getAuthUser() {
+    User user = getUserOrThrows();
+    Long[] userStatistics = getUserStatistics(user.getId());
+    return new UserInformationDto(
+        user, userStatistics[0], userStatistics[1], userStatistics[2], userStatistics[3]);
+  }
+
+  public Long[] getUserStatistics(Long userId) {
+    Long totalFollowers = invitationRepository.countFollowersByUserId(userId);
+    Long totalFollowing = invitationRepository.countFollowingByUserId(userId);
+    Long totalPosts = postRepository.countPostByUserId(userId);
+    Long totalFriends = invitationRepository.countFriendsByUserId(userId);
+    return new Long[] {totalFollowers, totalFollowing, totalPosts, totalFriends};
+  }
+
+  public UserWithRelationDto getUser(String username) {
+    User authUser = getUserOrThrows();
+
+    if (authUser.getUsername().equals(username)) return null;
+
+    User user = getUserByUsername(username);
+    Invitation invitation =
+        invitationRepository.findBySenderIdAndReceiverId(authUser.getId(), user.getId());
+
+    Long[] userStatistics = getUserStatistics(user.getId());
+    return new UserWithRelationDto(
+        user,
+        userStatistics[0],
+        userStatistics[1],
+        userStatistics[2],
+        userStatistics[3],
+        invitation);
+  }
+
+  public User getUserById(Long userId) {
+    return repository
+        .findById(userId)
+        .orElseThrow(() -> new ApiException(HttpStatus.BAD_REQUEST, "User is not found!"));
+  }
+
+  public User getUserByUsername(String username) {
+    return repository
+        .findByUsername(username)
+        .orElseThrow(() -> new ApiException(HttpStatus.BAD_REQUEST, "User is not found!"));
+  }
+
+  public List<User> getNonBlockingFriends(Long authUserId) {
+    User authUser = getUserOrThrows();
+    List<Object[]> friends = repository.getNonBlockingFriends(authUserId);
+
+    return friends.stream()
+        .map(
+            pair -> {
+              User sender = (User) pair[0];
+              User receiver = (User) pair[1];
+
+              return Objects.equals(authUser.getId(), sender.getId()) ? receiver : sender;
+            })
+        .toList();
+  }
+
+  public List<UserWithAvatarDto> getFriends() {
+    User authUser = getUserOrThrows();
+    List<User> friends = getNonBlockingFriends(authUser.getId());
+    return friends.stream().map(UserWithAvatarDto::new).toList();
+  }
+
+  public List<UserWithAvatarDto> getOnlineFriends() {
+    User authUser = getUserOrThrows();
+    List<Object[]> onlineFriends = repository.getOnlineFriends(authUser.getId());
+
+    return onlineFriends.stream()
+        .map(
+            pair -> {
+              User sender = (User) pair[0];
+              User receiver = (User) pair[1];
+              User friend = Objects.equals(authUser.getId(), sender.getId()) ? receiver : sender;
+              return new UserWithAvatarDto(friend);
+            })
+        .toList();
+  }
+
+  public User updateUserOnlineStatus(String username, boolean isOnline) {
+    User authUser = getUserByUsername(username);
+    authUser.setIsOnline(isOnline);
+    if (!isOnline) {
+      authUser.setLastOnline(Timestamp.valueOf(LocalDateTime.now()));
+    } else {
+      authUser.setLastOnline(null);
+    }
+    return repository.save(authUser);
+  }
+
+  public void updateOnlineStatusToFriend(String myName, boolean isOnline) {
+    User user = updateUserOnlineStatus(myName, isOnline);
+    List<User> friends = getNonBlockingFriends(user.getId());
+    for (User friend : friends) {
+      messagingTemplate.convertAndSendToUser(
+          friend.getUsername(), "/queue/online-status", new UserWithAvatarDto(friend));
+    }
+  }
+
+  public Optional<User> getUserByAuthentication(@Nullable Authentication authentication) {
+
+    if (authentication == null) {
+      return Optional.empty();
     }
 
-    public Long[] getUserStatistics(Long userId) {
-        Long totalFollowers = invitationRepository.countFollowersByUserId(userId);
-        Long totalFollowing = invitationRepository.countFollowingByUserId(userId);
-        Long totalPosts = postRepository.countPostByUserId(userId);
-        Long totalFriends = invitationRepository.countFriendsByUserId(userId);
-        return new Long[]{totalFollowers, totalFollowing, totalPosts, totalFriends};
+    var principal = authentication.getPrincipal();
+
+    if (principal instanceof Jwt jwt) {
+      String username = jwt.getSubject();
+      return repository.findByUsername(username);
+    } else if (principal instanceof User user) {
+      return Optional.of(user);
+    } else {
+      return Optional.empty();
+    }
+  }
+
+  public Optional<User> getUserByContext() {
+    var authentication = SecurityContextHolder.getContext().getAuthentication();
+    return getUserByAuthentication(authentication);
+  }
+
+  public User getUserOrThrows() {
+    return getUserByContext()
+        .orElseThrow(() -> new ErrorResponseException(HttpStatus.UNAUTHORIZED));
+  }
+
+  @Transactional(readOnly = true)
+  public List<UserWithRelationDto> searchUser(String keyword, int page) {
+
+    var MAX_LIMIT = 20;
+
+    if (page <= 0) {
+      throw new ApiException(
+          HttpStatus.BAD_REQUEST, String.format("Limit must be between 1 and %d", MAX_LIMIT));
     }
 
-    public UserWithRelationDto getUser(String username) {
-        User authUser = getUserOrThrows();
+    var pageable = PageRequest.of(page - 1, 20);
+    User authUser = getUserOrThrows();
 
-        if (authUser.getUsername().equals(username)) return null;
+    Page<Object[]> results = repository.searchUsersWithInvitation(authUser, keyword, pageable);
+    List<UserWithRelationDto> responses = new ArrayList<>();
+    for (Object[] result : results) {
+      User user = (User) result[0];
+      Long[] userStatistics = getUserStatistics(user.getId());
+      Invitation invitation = (Invitation) result[1];
+      UserWithRelationDto userWithRelationDto =
+          new UserWithRelationDto(
+              user,
+              userStatistics[0],
+              userStatistics[1],
+              userStatistics[2],
+              userStatistics[3],
+              invitation);
+      responses.add(userWithRelationDto);
+    }
+    return responses;
+  }
 
-        User user = getUserByUsername(username);
-        Invitation invitation = invitationRepository.findBySenderIdAndReceiverId(authUser.getId(), user.getId());
+  public String updateAvatar(MultipartFile avatar) {
+    if (fileTypeService.isImage(avatar) || avatar.isEmpty()) {
+      throw new ApiException(HttpStatus.BAD_REQUEST, "File is invalid!");
+    }
+    User user = getUserOrThrows();
+    String avatarUrl = cloudinaryService.uploadFile(avatar);
+    user.setAvatar(avatarUrl);
+    repository.save(user);
 
-        Long[] userStatistics = getUserStatistics(user.getId());
-        return new UserWithRelationDto(user, userStatistics[0], userStatistics[1], userStatistics[2], userStatistics[3], invitation);
+    return avatarUrl;
+  }
+
+  public String updateCoverPicture(MultipartFile coverPicture) {
+    if (fileTypeService.isImage(coverPicture) && coverPicture.isEmpty()) {
+      throw new ApiException(HttpStatus.BAD_REQUEST, "File is invalid!");
+    }
+    User user = getUserOrThrows();
+    String coverPictureUrl = cloudinaryService.uploadFile(coverPicture);
+    user.setCoverPicture(coverPictureUrl);
+    repository.save(user);
+
+    return coverPictureUrl;
+  }
+
+  public List<UserWithAvatarDto> suggestFriend(int page) {
+    User authUser = getUserOrThrows();
+    List<User> suggestedFriends =
+        repository.getUserIsNotFriend(authUser.getId(), PageRequest.of(page - 1, 20));
+    return suggestedFriends.stream().map(userMapper::toDto).toList();
+  }
+
+  public List<AttachmentDto> getAttachmentsFromPosts(List<Post> posts) {
+    return posts.stream()
+        .flatMap(post -> post.getAttachments().stream())
+        .map(AttachmentDto::new)
+        .collect(Collectors.toList());
+  }
+
+  public List<Post> fetchPostsForUser(User authUser, User user, PageRequest pageRequest) {
+    if (Objects.equals(authUser.getId(), user.getId())) {
+      return postRepository.getPostsByAuthUser(authUser, pageRequest);
     }
 
-    public User getUserById(Long userId) {
-        return repository.findById(userId).orElseThrow(() -> new ApiException(
-                HttpStatus.BAD_REQUEST,
-                "User is not found!"
-        ));
+    Invitation invitation = invitationCheckService.checkSenderPermission(authUser, user);
+
+    if (invitation != null && invitation.isAccepted()) {
+      return postRepository.getPostsIfIsFriend(user.getUsername(), pageRequest);
     }
 
-    public User getUserByUsername(String username) {
-        return repository.findByUsername(username).orElseThrow(() -> new ApiException(
-                HttpStatus.BAD_REQUEST,
-                "User is not found!"
-        ));
+    return postRepository.getPostsIfIsNotFriend(user.getUsername(), pageRequest);
+  }
+
+  public List<AttachmentDto> getUserMedia(Long userId, int page) {
+    User authUser = getUserOrThrows();
+    User user = getUserById(userId);
+
+    PageRequest pageRequest = PageRequest.of(page, 20);
+    List<Post> posts = fetchPostsForUser(authUser, user, pageRequest);
+
+    return getAttachmentsFromPosts(posts);
+  }
+
+  public void blockUser(Long userId) {
+    User authUser = getUserOrThrows();
+    User otherUser = getUserById(userId);
+    Invitation invitation =
+        invitationRepository.findBySenderIdAndReceiverId(authUser.getId(), otherUser.getId());
+    if (invitation == null) {
+      Invitation newInvitation =
+          Invitation.builder()
+              .sender(authUser)
+              .receiver(otherUser)
+              .restriction(Invitation.RestrictionType.BLOCKED)
+              .build();
+      invitationRepository.save(newInvitation);
+    } else {
+      invitation.setRestriction(Invitation.RestrictionType.BLOCKED);
+      invitationRepository.save(invitation);
     }
 
-    public List<User> getNonBlockingFriends(Long authUserId) {
-        User authUser = getUserOrThrows();
-        List<Object[]> friends = repository.getNonBlockingFriends(authUserId);
+    messagingTemplate.convertAndSendToUser(
+        otherUser.getUsername(), "/queue/blocking/", Map.of("is_blocked", true));
+  }
 
-        return friends.stream().map(pair -> {
-            User sender = (User) pair[0];
-            User receiver = (User) pair[1];
+  public void unBlockUser(Long userId) {
+    User authUser = getUserOrThrows();
+    User otherUser = getUserById(userId);
+    Invitation invitation =
+        invitationRepository.findBySenderIdAndReceiverId(authUser.getId(), otherUser.getId());
 
-            return Objects.equals(authUser.getId(), sender.getId()) ? receiver : sender;
-        }).toList();
+    if (invitation == null) {
+      throw new ApiException(HttpStatus.BAD_REQUEST, "You haven't blocked this user before!");
+    } else {
+      invitation.setRestriction(Invitation.RestrictionType.NONE);
+      invitationRepository.save(invitation);
+
+      messagingTemplate.convertAndSendToUser(
+          otherUser.getUsername(), "/queue/blocking/", Map.of("is_blocked", false));
     }
-
-    public List<UserWithAvatarDto> getFriends () {
-        User authUser = getUserOrThrows();
-        List<User> friends = getNonBlockingFriends(authUser.getId());
-        return friends.stream().map(UserWithAvatarDto::new).toList();
-    }
-
-    public List<UserWithAvatarDto> getOnlineFriends() {
-        User authUser = getUserOrThrows();
-        List<Object[]> onlineFriends = repository.getOnlineFriends(authUser.getId());
-
-        return onlineFriends.stream().map(pair -> {
-            User sender = (User) pair[0];
-            User receiver = (User) pair[1];
-            User friend = Objects.equals(authUser.getId(), sender.getId()) ? receiver : sender;
-            return new UserWithAvatarDto(friend);
-        }).toList();
-    }
-
-    public User updateUserOnlineStatus(String username, boolean isOnline) {
-        User authUser = getUserByUsername(username);
-        authUser.setIsOnline(isOnline);
-        if (!isOnline) {
-            authUser.setLastOnline(Timestamp.valueOf(LocalDateTime.now()));
-        } else {
-            authUser.setLastOnline(null);
-        }
-        return repository.save(authUser);
-    }
-
-    public void updateOnlineStatusToFriend(String myName, boolean isOnline) {
-        User user = updateUserOnlineStatus(myName, isOnline);
-        List<User> friends = getNonBlockingFriends(user.getId());
-        for (User friend : friends) {
-            messagingTemplate.convertAndSendToUser(
-                    friend.getUsername(),
-                    "/queue/online-status",
-                    new UserWithAvatarDto(friend)
-            );
-        }
-    }
-
-    public Optional<User> getUserByAuthentication(@Nullable Authentication authentication) {
-
-        if (authentication == null) {
-            return Optional.empty();
-        }
-
-        var principal = authentication.getPrincipal();
-
-        if (principal instanceof Jwt jwt) {
-            String username = jwt.getSubject();
-            return repository.findByUsername(username);
-        } else if (principal instanceof User user) {
-            return Optional.of(user);
-        } else {
-            return Optional.empty();
-        }
-    }
-
-    public Optional<User> getUserByContext() {
-        var authentication = SecurityContextHolder.getContext().getAuthentication();
-        return getUserByAuthentication(authentication);
-    }
-
-    public User getUserOrThrows() {
-        return getUserByContext()
-            .orElseThrow(() -> new ErrorResponseException(HttpStatus.UNAUTHORIZED));
-    }
-
-    @Transactional(readOnly = true)
-    public List<UserWithRelationDto> searchUser(String keyword, int page) {
-
-        var MAX_LIMIT = 20;
-
-        if (page <= 0) {
-            throw new ApiException(
-                HttpStatus.BAD_REQUEST,
-                String.format("Limit must be between 1 and %d", MAX_LIMIT)
-            );
-        }
-
-        var pageable = PageRequest.of(page - 1, 20);
-        User authUser = getUserOrThrows();
-
-        Page<Object[]> results = repository.searchUsersWithInvitation(authUser, keyword, pageable);
-        List<UserWithRelationDto> responses = new ArrayList<>();
-        for (Object[] result : results) {
-            User user = (User) result[0];
-            Long[] userStatistics = getUserStatistics(user.getId());
-            Invitation invitation = (Invitation) result[1];
-            UserWithRelationDto userWithRelationDto = new UserWithRelationDto(user, userStatistics[0], userStatistics[1], userStatistics[2], userStatistics[3], invitation);
-            responses.add(userWithRelationDto);
-        }
-        return responses;
-    }
-
-    public String updateAvatar(MultipartFile avatar) {
-        if(fileTypeService.isImage(avatar) || avatar.isEmpty()) {
-            throw new ApiException(
-                    HttpStatus.BAD_REQUEST,
-                    "File is invalid!"
-            );
-        }
-        User user = getUserOrThrows();
-        String avatarUrl = cloudinaryService.uploadFile(avatar);
-        user.setAvatar(avatarUrl);
-        repository.save(user);
-
-        return avatarUrl;
-    }
-
-    public String updateCoverPicture(MultipartFile coverPicture) {
-        if(fileTypeService.isImage(coverPicture) && coverPicture.isEmpty()) {
-            throw new ApiException(
-                    HttpStatus.BAD_REQUEST,
-                    "File is invalid!"
-            );
-        }
-        User user = getUserOrThrows();
-        String coverPictureUrl = cloudinaryService.uploadFile(coverPicture);
-        user.setCoverPicture(coverPictureUrl);
-        repository.save(user);
-
-        return coverPictureUrl;
-    }
-
-    public List<UserWithAvatarDto> suggestFriend(int page) {
-        User authUser = getUserOrThrows();
-        List<User> suggestedFriends = repository.getUserIsNotFriend(authUser.getId(), PageRequest.of(page-1, 20));
-        return suggestedFriends.stream().map(userMapper::toDto).toList();
-    }
-
-    public List<AttachmentDto> getAttachmentsFromPosts(List<Post> posts) {
-        return posts.stream()
-                .flatMap(post -> post.getAttachments().stream())
-                .map(AttachmentDto::new)
-                .collect(Collectors.toList());
-    }
-
-    public List<Post> fetchPostsForUser(User authUser, User user, PageRequest pageRequest) {
-        if (Objects.equals(authUser.getId(), user.getId())) {
-            return postRepository.getPostsByAuthUser(authUser, pageRequest);
-        }
-
-        Invitation invitation = invitationCheckService.checkSenderPermission(authUser, user);
-
-        if (invitation != null && invitation.isAccepted()) {
-            return postRepository.getPostsIfIsFriend(user.getUsername(), pageRequest);
-        }
-
-        return postRepository.getPostsIfIsNotFriend(user.getUsername(), pageRequest);
-    }
-
-    public List<AttachmentDto> getUserMedia(Long userId, int page) {
-        User authUser = getUserOrThrows();
-        User user = getUserById(userId);
-
-        PageRequest pageRequest = PageRequest.of(page, 20);
-        List<Post> posts = fetchPostsForUser(authUser, user, pageRequest);
-
-        return getAttachmentsFromPosts(posts);
-    }
-
-    public void blockUser(Long userId) {
-        User authUser = getUserOrThrows();
-        User otherUser = getUserById(userId);
-        Invitation invitation = invitationRepository.findBySenderIdAndReceiverId(authUser.getId(), otherUser.getId());
-        if (invitation == null) {
-            Invitation newInvitation = Invitation.builder()
-                    .sender(authUser)
-                    .receiver(otherUser)
-                    .restriction(Invitation.RestrictionType.BLOCKED)
-                    .build();
-            invitationRepository.save(newInvitation);
-        } else {
-            invitation.setRestriction(Invitation.RestrictionType.BLOCKED);
-            invitationRepository.save(invitation);
-        }
-
-        messagingTemplate.convertAndSendToUser(
-                otherUser.getUsername(),
-                "/queue/blocking/",
-                Map.of(
-                        "is_blocked", true
-                )
-        );
-    }
-
-    public void unBlockUser(Long userId) {
-        User authUser = getUserOrThrows();
-        User otherUser = getUserById(userId);
-        Invitation invitation = invitationRepository.findBySenderIdAndReceiverId(authUser.getId(), otherUser.getId());
-
-        if (invitation == null) {
-            throw new ApiException(
-                    HttpStatus.BAD_REQUEST,
-                    "You haven't blocked this user before!"
-            );
-        } else {
-            invitation.setRestriction(Invitation.RestrictionType.NONE);
-            invitationRepository.save(invitation);
-
-            messagingTemplate.convertAndSendToUser(
-                    otherUser.getUsername(),
-                    "/queue/blocking/",
-                    Map.of(
-                            "is_blocked", false
-                    )
-            );
-        }
-    }
+  }
 }

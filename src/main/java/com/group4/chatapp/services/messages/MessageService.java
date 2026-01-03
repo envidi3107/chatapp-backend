@@ -7,6 +7,7 @@ import com.group4.chatapp.models.User;
 import com.group4.chatapp.repositories.MessageRepository;
 import com.group4.chatapp.services.UserService;
 import jakarta.transaction.Transactional;
+import java.util.List;
 import lombok.Getter;
 import lombok.RequiredArgsConstructor;
 import org.springframework.beans.factory.annotation.Value;
@@ -16,51 +17,44 @@ import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Service;
 import org.springframework.web.server.ResponseStatusException;
 
-import java.util.Collections;
-import java.util.List;
-import java.util.stream.Collectors;
-
 @Service
 @RequiredArgsConstructor
 @Getter
 public class MessageService {
-    private final MessageChangesService sendService;
-    private final MessageCheckService checkService;
-    private final MessageRepository messageRepository;
-    private final UserService userService;
+  private final MessageChangesService sendService;
+  private final MessageCheckService checkService;
+  private final MessageRepository messageRepository;
+  private final UserService userService;
 
-    @Value("${messages.max-request}")
-    private int messageRequestSize;
+  @Value("${messages.max-request}")
+  private int messageRequestSize;
 
-    @Transactional
-    public List<MessageReceiveDto> getMessages(long roomId, int page) {
+  @Transactional
+  public List<MessageReceiveDto> getMessages(long roomId, int page) {
 
-        if (page < 1) {
-            throw new ResponseStatusException(
-                HttpStatus.BAD_REQUEST,
-                "Page mustn't less than 1!"
-            );
-        }
-        User authUser = userService.getUserOrThrows();
-        checkService.checkExistInRoom(authUser.getId(), roomId);
-
-        var pageRequest = PageRequest.of(
-            page - 1, messageRequestSize,
-            Sort.by(Sort.Direction.ASC, "sentOn")
-        );
-
-        return messageRepository.findByRoomId(roomId, pageRequest).stream().map(MessageReceiveDto::new).toList();
+    if (page < 1) {
+      throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Page mustn't less than 1!");
     }
+    User authUser = userService.getUserOrThrows();
+    checkService.checkExistInRoom(authUser.getId(), roomId);
 
-    public MessageSendResponseDto sendMessage(long roomId, MessageSendDto dto) {
-        return sendService.sendMessage(roomId, dto);
-    }
+    var pageRequest =
+        PageRequest.of(page - 1, messageRequestSize, Sort.by(Sort.Direction.ASC, "sentOn"));
 
-    public void changeMessage(long messageId, MessageSendDto dto) {
-         sendService.editMessage(messageId, dto);
-    }
+    return messageRepository.findByRoomId(roomId, pageRequest).stream()
+        .map(MessageReceiveDto::new)
+        .toList();
+  }
 
-    public void deleteMessage(long messageId) {
-        sendService.recallMessage(messageId);
-    }
+  public MessageSendResponseDto sendMessage(long roomId, MessageSendDto dto) {
+    return sendService.sendMessage(roomId, dto);
+  }
+
+  public void changeMessage(long messageId, MessageSendDto dto) {
+    sendService.editMessage(messageId, dto);
+  }
+
+  public void deleteMessage(long messageId) {
+    sendService.recallMessage(messageId);
+  }
 }

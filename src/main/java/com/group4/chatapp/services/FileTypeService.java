@@ -12,88 +12,85 @@ import org.springframework.web.server.ResponseStatusException;
 @Service
 @RequiredArgsConstructor
 public class FileTypeService {
-    public boolean isImage(MultipartFile file) {
-        String contentType = getMimeType(file.getContentType());
-        return !contentType.equalsIgnoreCase("image");
+  public boolean isImage(MultipartFile file) {
+    String contentType = getMimeType(file.getContentType());
+    return !contentType.equalsIgnoreCase("image");
+  }
+
+  public String getFileExtension(String fileName) {
+    log.debug("ext: {}", fileName.substring(fileName.lastIndexOf(".") + 1));
+    return fileName.substring(fileName.lastIndexOf(".") + 1);
+  }
+
+  public String getMimeType(String contentType) {
+
+    if (contentType == null) {
+      throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Missing content type");
     }
 
-    public String getFileExtension(String fileName) {
-        log.debug("ext: {}", fileName.substring(fileName.lastIndexOf(".") + 1));
-        return fileName.substring(fileName.lastIndexOf(".") + 1);
+    if (contentType.startsWith("image/")) {
+      return "image";
     }
 
-    public String getMimeType(String contentType) {
-
-        if (contentType == null) {
-            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Missing content type");
-        }
-
-        if (contentType.startsWith("image/")) {
-            return "image";
-        }
-
-        if (contentType.startsWith("video/")) {
-            return "video";
-        }
-
-        if (contentType.startsWith("audio/")) {
-            return "audio";
-        }
-
-        return "raw";
+    if (contentType.startsWith("video/")) {
+      return "video";
     }
 
-    public String getCloudinaryResourceType(String contentType) {
-        if (contentType == null) {
-            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Missing content type");
-        }
-
-        if (contentType.startsWith("image/")) {
-            return "image";
-        }
-
-        if (contentType.startsWith("video/")) {
-            return "video";
-        }
-
-        return "raw";
+    if (contentType.startsWith("audio/")) {
+      return "audio";
     }
 
-    public String getName(String filename) {
-        int index = filename.lastIndexOf(".");
-        return filename.substring(0, index);
+    return "raw";
+  }
+
+  public String getCloudinaryResourceType(String contentType) {
+    if (contentType == null) {
+      throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Missing content type");
     }
 
-    public Attachment.FileType checkTypeInFileType(String resourceType, String format) {
-
-        if (resourceType == null || format == null) {
-            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Missing file metadata");
-        }
-
-        switch (resourceType.toLowerCase()) {
-            case "image":
-                return Attachment.FileType.IMAGE;
-
-            case "video":
-                return Attachment.FileType.VIDEO;
-
-            case "raw":
-
-                if (Attachment.isDocumentFormat(format)) {
-                    return Attachment.FileType.DOCUMENT;
-                }
-
-                if (Attachment.isAudioFormat(format)) {
-                    return Attachment.FileType.AUDIO;
-                }
-
-                return Attachment.FileType.RAW;
-
-            default:
-                throw new com.group4.chatapp.exceptions.ApiException(
-                    HttpStatus.UNSUPPORTED_MEDIA_TYPE,
-                    "File type is not supported!"
-                );
-        }
+    if (contentType.startsWith("image/")) {
+      return "image";
     }
+
+    if (contentType.startsWith("video/")) {
+      return "video";
+    }
+
+    return "raw";
+  }
+
+  public String getName(String filename) {
+    int index = filename.lastIndexOf(".");
+    return filename.substring(0, index);
+  }
+
+  public Attachment.FileType checkTypeInFileType(String resourceType, String format) {
+
+    if (resourceType == null || format == null) {
+      throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Missing file metadata");
+    }
+
+    switch (resourceType.toLowerCase()) {
+      case "image":
+        return Attachment.FileType.IMAGE;
+
+      case "video":
+        return Attachment.FileType.VIDEO;
+
+      case "raw":
+        if (Attachment.isDocumentFormat(format)) {
+          return Attachment.FileType.DOCUMENT;
+        }
+
+        if (Attachment.isAudioFormat(format)) {
+          return Attachment.FileType.AUDIO;
+        }
+
+        return Attachment.FileType.RAW;
+
+      default:
+        throw new com.group4.chatapp.exceptions.ApiException(
+            HttpStatus.UNSUPPORTED_MEDIA_TYPE, "File type is not supported!");
+    }
+  }
 }

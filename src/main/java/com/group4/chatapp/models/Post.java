@@ -3,12 +3,10 @@ package com.group4.chatapp.models;
 import com.group4.chatapp.models.Enum.PostAttachmentType;
 import com.group4.chatapp.models.Enum.PostVisibilityType;
 import jakarta.persistence.*;
+import java.sql.Timestamp;
+import java.util.List;
 import lombok.*;
 import org.hibernate.annotations.CreationTimestamp;
-
-import java.sql.Timestamp;
-import java.time.LocalDateTime;
-import java.util.List;
 
 @Entity
 @Getter
@@ -18,44 +16,44 @@ import java.util.List;
 @AllArgsConstructor
 @Table(name = "posts")
 public class Post extends Content {
-    private String caption;
+  private String caption;
 
-    @Column(name = "caption_background")
-    private Integer captionBackground;
+  @Column(name = "caption_background")
+  private Integer captionBackground;
 
-    @Enumerated(EnumType.STRING)
-    @Builder.Default
-    private PostVisibilityType visibility = PostVisibilityType.PUBLIC;
+  @Enumerated(EnumType.STRING)
+  @Builder.Default
+  private PostVisibilityType visibility = PostVisibilityType.PUBLIC;
 
-    @Enumerated(value = EnumType.STRING)
-    @Column(name = "post_attachment_type", nullable = false)
-    @Builder.Default
-    private PostAttachmentType postAttachmentType = PostAttachmentType.MEDIA;
+  @Enumerated(value = EnumType.STRING)
+  @Column(name = "post_attachment_type", nullable = false)
+  @Builder.Default
+  private PostAttachmentType postAttachmentType = PostAttachmentType.MEDIA;
 
-    @Enumerated(value = EnumType.STRING)
-    private PostStatus status;
+  @Enumerated(value = EnumType.STRING)
+  private PostStatus status;
 
-    @CreationTimestamp
-    @Column(name = "published_at")
-    private Timestamp publishedAt;
+  @CreationTimestamp
+  @Column(name = "published_at")
+  private Timestamp publishedAt;
 
-    @OneToMany(mappedBy = "post", cascade = CascadeType.ALL)
-    private List<Attachment> attachments;
+  @OneToMany(mappedBy = "post", cascade = CascadeType.ALL)
+  private List<Attachment> attachments;
 
-    @ManyToOne(optional = false)
-    @JoinColumn(name = "user_id")
-    private User user;
+  @ManyToOne(optional = false)
+  @JoinColumn(name = "user_id")
+  private User user;
 
-    @ManyToOne(fetch = FetchType.LAZY)
-    @JoinColumn(name = "shared_post_id")
-    private Post sharedPost;
+  @ManyToOne(fetch = FetchType.LAZY)
+  @JoinColumn(name = "shared_post_id")
+  private Post sharedPost;
 
-    @ManyToOne(fetch = FetchType.LAZY)
-    @JoinColumn(name = "shared_attachment_id")
-    private Attachment sharedAttachment;
+  @ManyToOne(fetch = FetchType.LAZY)
+  @JoinColumn(name = "shared_attachment_id")
+  private Attachment sharedAttachment;
 
-    public enum PostStatus {
-        PUBLISHED,
-        DRAFT
-    }
+  public enum PostStatus {
+    PUBLISHED,
+    DRAFT
+  }
 }

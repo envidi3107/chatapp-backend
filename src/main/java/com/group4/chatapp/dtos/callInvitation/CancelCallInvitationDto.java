@@ -4,5 +4,5 @@ import lombok.Data;
 
 @Data
 public class CancelCallInvitationDto {
-    private Long channelId;
+  private Long channelId;
 }

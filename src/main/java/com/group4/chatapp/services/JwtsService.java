@@ -4,6 +4,9 @@ import com.group4.chatapp.dtos.token.TokenObtainPairDto;
 import com.group4.chatapp.dtos.token.TokenRefreshDto;
 import com.group4.chatapp.dtos.user.UserDto;
 import com.group4.chatapp.exceptions.ApiException;
+import java.time.Duration;
+import java.time.Instant;
+import java.util.UUID;
 import lombok.RequiredArgsConstructor;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.http.HttpStatus;
@@ -14,67 +17,57 @@ import org.springframework.security.oauth2.jwt.*;
 import org.springframework.security.oauth2.server.resource.authentication.BearerTokenAuthenticationToken;
 import org.springframework.stereotype.Service;
 
-import java.time.Duration;
-import java.time.Instant;
-import java.util.UUID;
-
 @Service
 @RequiredArgsConstructor
 public class JwtsService {
 
-    private final JwtEncoder jwtEncoder;
-    private final AuthenticationManager authenticationManager;
+  private final JwtEncoder jwtEncoder;
+  private final AuthenticationManager authenticationManager;
 
-    @Value("${jwts.access-token-lifetime}")
-    private Duration accessTokenLifetime;
+  @Value("${jwts.access-token-lifetime}")
+  private Duration accessTokenLifetime;
 
-    @Value("${jwts.refresh-token-lifetime}")
-    private Duration refreshTokenLifetime;
+  @Value("${jwts.refresh-token-lifetime}")
+  private Duration refreshTokenLifetime;
 
-    private Jwt generateToken(Authentication authentication, Duration duration) {
+  private Jwt generateToken(Authentication authentication, Duration duration) {
 
-        var issued = Instant.now();
-        var expiration = issued.plus(duration);
+    var issued = Instant.now();
+    var expiration = issued.plus(duration);
 
-        var claimsSet = JwtClaimsSet.builder()
+    var claimsSet =
+        JwtClaimsSet.builder()
             .subject(authentication.getName())
             .id(UUID.randomUUID().toString())
             .expiresAt(expiration)
             .issuedAt(issued)
             .build();
 
-        var parameter = JwtEncoderParameters.from(claimsSet);
+    var parameter = JwtEncoderParameters.from(claimsSet);
 
-        return jwtEncoder.encode(parameter);
+    return jwtEncoder.encode(parameter);
+  }
+
+  public TokenObtainPairDto tokenObtainPair(UserDto dto) {
+    try {
+      var authentication =
+          authenticationManager.authenticate(
+              new UsernamePasswordAuthenticationToken(dto.username(), dto.password()));
+
+      return new TokenObtainPairDto(
+          generateToken(authentication, accessTokenLifetime),
+          generateToken(authentication, refreshTokenLifetime));
+    } catch (Exception e) {
+      throw new ApiException(HttpStatus.BAD_REQUEST, "Username or password isn't correct!");
     }
+  }
 
-    public TokenObtainPairDto tokenObtainPair(UserDto dto) {
-        try {
-            var authentication = authenticationManager.authenticate(
-                    new UsernamePasswordAuthenticationToken(
-                            dto.username(), dto.password()
-                    )
-            );
+  public TokenRefreshDto refreshToken(String refreshToken) {
 
-            return new TokenObtainPairDto(
-                    generateToken(authentication, accessTokenLifetime),
-                    generateToken(authentication, refreshTokenLifetime)
-            );
-        } catch (Exception e) {
-            throw new ApiException(
-                    HttpStatus.BAD_REQUEST,
-                    "Username or password isn't correct!"
-            );
-        }
-    }
+    var authentication =
+        authenticationManager.authenticate(new BearerTokenAuthenticationToken(refreshToken));
 
-    public TokenRefreshDto refreshToken(String refreshToken) {
-
-        var authentication = authenticationManager.authenticate(
-            new BearerTokenAuthenticationToken(refreshToken)
-        );
-
-        var accessToken = generateToken(authentication, accessTokenLifetime);
-        return new TokenRefreshDto(accessToken.getTokenValue());
-    }
+    var accessToken = generateToken(authentication, accessTokenLifetime);
+    return new TokenRefreshDto(accessToken.getTokenValue());
+  }
 }

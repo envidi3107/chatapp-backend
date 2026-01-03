@@ -12,10 +12,10 @@ import org.springframework.web.bind.annotation.RestController;
 @RequestMapping("/api/v1/attachment")
 @RequiredArgsConstructor
 public class AttachmentController {
-    private AttachmentService attachmentService;
+  private AttachmentService attachmentService;
 
-    @GetMapping("/get/")
-    public PostAttachmentResponseDto getAttachment(@RequestParam("id") Long id) {
-        return new PostAttachmentResponseDto();
-    }
+  @GetMapping("/get/")
+  public PostAttachmentResponseDto getAttachment(@RequestParam("id") Long id) {
+    return new PostAttachmentResponseDto();
+  }
 }

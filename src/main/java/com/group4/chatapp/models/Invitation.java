@@ -12,52 +12,54 @@ import org.springframework.lang.Nullable;
 @AllArgsConstructor
 public class Invitation {
 
-    @Id
-    @GeneratedValue(strategy = GenerationType.IDENTITY)
-    private Long id;
+  @Id
+  @GeneratedValue(strategy = GenerationType.IDENTITY)
+  private Long id;
 
-    @ManyToOne(optional = false)
-    private User sender;
+  @ManyToOne(optional = false)
+  private User sender;
 
-    @ManyToOne(optional = false)
-    private User receiver;
+  @ManyToOne(optional = false)
+  private User receiver;
 
-    @Nullable
-    @ManyToOne
-    private ChatRoom chatRoom;
+  @Nullable @ManyToOne private ChatRoom chatRoom;
 
-    @Enumerated(EnumType.STRING)
-    private Status status;
+  @Enumerated(EnumType.STRING)
+  private Status status;
 
-    @Enumerated(EnumType.STRING)
-    @Builder.Default
-    private RestrictionType restriction = RestrictionType.NONE;
+  @Enumerated(EnumType.STRING)
+  @Builder.Default
+  private RestrictionType restriction = RestrictionType.NONE;
 
-    public boolean isFriendRequest() {
-        return chatRoom == null;
-    }
+  public boolean isFriendRequest() {
+    return chatRoom == null;
+  }
 
-    public boolean isPending() {
-        return status == Status.PENDING;
-    }
+  public boolean isPending() {
+    return status == Status.PENDING;
+  }
 
-    public boolean isAccepted() {
-        return status == Status.ACCEPTED;
-    }
+  public boolean isAccepted() {
+    return status == Status.ACCEPTED;
+  }
 
-    public boolean isBlock() {
-        return restriction == RestrictionType.BLOCKED;
-    }
+  public boolean isBlock() {
+    return restriction == RestrictionType.BLOCKED;
+  }
 
-    public boolean isMute() {
-        return restriction == RestrictionType.MUTED;
-    }
+  public boolean isMute() {
+    return restriction == RestrictionType.MUTED;
+  }
 
-    public enum Status {
-        PENDING, ACCEPTED, REJECTED
-    }
+  public enum Status {
+    PENDING,
+    ACCEPTED,
+    REJECTED
+  }
 
-    public enum RestrictionType {
-        NONE, BLOCKED, MUTED
-    }
+  public enum RestrictionType {
+    NONE,
+    BLOCKED,
+    MUTED
+  }
 }

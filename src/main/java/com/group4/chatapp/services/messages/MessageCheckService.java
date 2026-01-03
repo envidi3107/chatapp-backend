@@ -10,83 +10,71 @@ import com.group4.chatapp.services.ChatRoomService;
 import com.group4.chatapp.services.UserService;
 import com.group4.chatapp.services.invitations.InvitationCheckService;
 import com.group4.chatapp.services.invitations.InvitationService;
+import java.util.List;
+import java.util.Objects;
 import lombok.RequiredArgsConstructor;
 import lombok.experimental.FieldDefaults;
 import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Service;
 import org.springframework.web.server.ResponseStatusException;
 
-import java.util.List;
-import java.util.Objects;
-
 @Service
 @RequiredArgsConstructor
 @FieldDefaults(makeFinal = true)
 public class MessageCheckService {
-    private UserService userService;
-    private MessageRepository messageRepository;
-    private ChatRoomRepository chatRoomRepository;
-    private ChatRoomService chatRoomService;
-    private InvitationService invitationService;
-    private InvitationCheckService invitationCheckService;
+  private UserService userService;
+  private MessageRepository messageRepository;
+  private ChatRoomRepository chatRoomRepository;
+  private ChatRoomService chatRoomService;
+  private InvitationService invitationService;
+  private InvitationCheckService invitationCheckService;
 
-    public void checkExistInRoom(long userId, long roomId) {
-        var userInChatRoom = chatRoomRepository.userIsMemberInChatRoom(userId, roomId);
-        if (!userInChatRoom) {
-            throw new ResponseStatusException(
-                    HttpStatus.FORBIDDEN,
-                    "You aren't in this room!"
-            );
-        }
+  public void checkExistInRoom(long userId, long roomId) {
+    var userInChatRoom = chatRoomRepository.userIsMemberInChatRoom(userId, roomId);
+    if (!userInChatRoom) {
+      throw new ResponseStatusException(HttpStatus.FORBIDDEN, "You aren't in this room!");
+    }
+  }
+
+  public ChatRoom receiveChatRoomAndCheck(long id, User user) {
+
+    var chatRoom = chatRoomService.getChatRoom(id);
+    if (chatRoom.getLeaderOnlySend()) {
+      if (!Objects.equals(chatRoom.getLeader(), user)) {
+        throw new ApiException(HttpStatus.BAD_REQUEST, "Only chat room's leader can do this!");
+      }
+    }
+    if (chatRoom.isChatDuo()) {
+      List<User> members = chatRoom.getMembers().stream().toList();
+      User authUser = members.get(0);
+      User otherUser = members.get(1);
+      invitationCheckService.checkSenderPermission(authUser, otherUser);
     }
 
-    public ChatRoom receiveChatRoomAndCheck(long id, User user) {
+    checkExistInRoom(user.getId(), id);
+    return chatRoom;
+  }
 
-        var chatRoom = chatRoomService.getChatRoom(id);
-        if (chatRoom.getLeaderOnlySend()) {
-            if (!Objects.equals(chatRoom.getLeader(), user)) {
-                throw new ApiException(
-                        HttpStatus.BAD_REQUEST,
-                        "Only chat room's leader can do this!"
-                );
-            }
-        }
-        if (chatRoom.isChatDuo()) {
-            List<User> members = chatRoom.getMembers().stream().toList();
-            User authUser = members.get(0);
-            User otherUser = members.get(1);
-            invitationCheckService.checkSenderPermission(authUser, otherUser);
-        }
+  @SuppressWarnings("UnusedReturnValue")
+  public ChatRoom receiveChatRoomAndCheck(long id) {
+    var user = userService.getUserOrThrows();
+    return receiveChatRoomAndCheck(id, user);
+  }
 
-        checkExistInRoom(user.getId(), id);
-        return chatRoom;
+  public ChatMessage getMessageAndCheckSender(long id) {
+
+    var user = userService.getUserOrThrows();
+    var message =
+        messageRepository
+            .findById(id)
+            .orElseThrow(
+                () -> new ApiException(HttpStatus.NOT_FOUND, "The old message not found."));
+
+    var isSender = message.getSender().equals(user);
+    if (!isSender) {
+      throw new ApiException(HttpStatus.FORBIDDEN, "You are not the sender of the message");
     }
 
-    @SuppressWarnings("UnusedReturnValue")
-    public ChatRoom receiveChatRoomAndCheck(long id) {
-        var user = userService.getUserOrThrows();
-        return receiveChatRoomAndCheck(id, user);
-    }
-
-    public ChatMessage getMessageAndCheckSender(long id) {
-
-        var user = userService.getUserOrThrows();
-        var message = messageRepository.findById(id)
-            .orElseThrow(() ->
-                new ApiException(
-                    HttpStatus.NOT_FOUND,
-                    "The old message not found."
-                )
-            );
-
-        var isSender = message.getSender().equals(user);
-        if (!isSender) {
-            throw new ApiException(
-                HttpStatus.FORBIDDEN,
-                "You are not the sender of the message"
-            );
-        }
-
-        return message;
-    }
+    return message;
+  }
 }

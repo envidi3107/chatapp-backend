@@ -13,19 +13,27 @@ import lombok.NoArgsConstructor;
 @AllArgsConstructor
 @JsonInclude(JsonInclude.Include.NON_NULL)
 public class UserWithRelationDto {
-    private InvitationDto invitation;
-    private UserInformationDto userWithInformation;
+  private InvitationDto invitation;
+  private UserInformationDto userWithInformation;
 
-    public UserWithRelationDto(User user, Long totalFollowers, Long totalFollowing, Long totalPosts, Long totalFriends, Invitation invitation) {
-        if (invitation == null) {
-            this.userWithInformation = new UserInformationDto(user, totalFollowers, totalFollowing, totalPosts, totalFriends);
-        } else {
-            this.invitation = new InvitationDto(invitation);
-            if (invitation.isBlock()) {
-                this.userWithInformation = new UserInformationDto(user);
-            } else {
-                this.userWithInformation = new UserInformationDto(user, totalFollowers, totalFollowing, totalPosts, totalFriends);
-            }
-        }
+  public UserWithRelationDto(
+      User user,
+      Long totalFollowers,
+      Long totalFollowing,
+      Long totalPosts,
+      Long totalFriends,
+      Invitation invitation) {
+    if (invitation == null) {
+      this.userWithInformation =
+          new UserInformationDto(user, totalFollowers, totalFollowing, totalPosts, totalFriends);
+    } else {
+      this.invitation = new InvitationDto(invitation);
+      if (invitation.isBlock()) {
+        this.userWithInformation = new UserInformationDto(user);
+      } else {
+        this.userWithInformation =
+            new UserInformationDto(user, totalFollowers, totalFollowing, totalPosts, totalFriends);
+      }
     }
+  }
 }

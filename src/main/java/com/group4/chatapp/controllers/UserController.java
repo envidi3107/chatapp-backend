@@ -14,104 +14,101 @@ import com.group4.chatapp.services.JwtsService;
 import com.group4.chatapp.services.UserService;
 import jakarta.validation.Valid;
 import jakarta.validation.constraints.NotNull;
+import java.util.List;
+import java.util.Map;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.MediaType;
 import org.springframework.web.bind.annotation.*;
 import org.springframework.web.multipart.MultipartFile;
 
-import java.util.List;
-import java.util.Map;
-
 @RestController
 @RequestMapping("/api/v1/users")
 @RequiredArgsConstructor
 public class UserController {
-    private final UserService userService;
-    private final JwtsService jwtsService;
-    private final CommentService commentService;
+  private final UserService userService;
+  private final JwtsService jwtsService;
+  private final CommentService commentService;
 
-    @PostMapping("/register/")
-    @ResponseStatus(HttpStatus.CREATED)
-    public void registerUser(@Valid @RequestBody UserDto dto) {
-        userService.createUser(dto);
-    }
+  @PostMapping("/register/")
+  @ResponseStatus(HttpStatus.CREATED)
+  public void registerUser(@Valid @RequestBody UserDto dto) {
+    userService.createUser(dto);
+  }
 
-    @PostMapping("/token/")
-    public TokenObtainPairDto obtainToken(@Valid @RequestBody UserDto dto) {
-        return jwtsService.tokenObtainPair(dto);
-    }
+  @PostMapping("/token/")
+  public TokenObtainPairDto obtainToken(@Valid @RequestBody UserDto dto) {
+    return jwtsService.tokenObtainPair(dto);
+  }
 
-    @PostMapping("/token/refresh/")
-    public TokenRefreshDto refreshToken(
-        @Valid @RequestBody TokenRefreshRequestDto dto
-    ) {
-        return jwtsService.refreshToken(dto.refresh());
-    }
+  @PostMapping("/token/refresh/")
+  public TokenRefreshDto refreshToken(@Valid @RequestBody TokenRefreshRequestDto dto) {
+    return jwtsService.refreshToken(dto.refresh());
+  }
 
-    @GetMapping("/my-info/")
-    public UserInformationDto getAuthUser() {
-        return userService.getAuthUser();
-    }
-    
-    @GetMapping("/info/")
-    public UserWithRelationDto getUser(@RequestParam("username") String username) {
-        return userService.getUser(username);
-    }
+  @GetMapping("/my-info/")
+  public UserInformationDto getAuthUser() {
+    return userService.getAuthUser();
+  }
 
-    @GetMapping("/friends/")
-    public List<UserWithAvatarDto> getListFriend() {
-        return userService.getFriends();
-    }
+  @GetMapping("/info/")
+  public UserWithRelationDto getUser(@RequestParam("username") String username) {
+    return userService.getUser(username);
+  }
 
-    @GetMapping("/friends/online/")
-    public List<UserWithAvatarDto> getOnlineFriends() {
-        return userService.getOnlineFriends();
-    }
+  @GetMapping("/friends/")
+  public List<UserWithAvatarDto> getListFriend() {
+    return userService.getFriends();
+  }
 
-    @GetMapping("/search/")
-    public List<UserWithRelationDto> searchUser(
-        @RequestParam(name = "q") String keyword,
-        @RequestParam(name = "page", defaultValue = "1") int page
-    ) {
-        return userService.searchUser(keyword, page);
-    }
+  @GetMapping("/friends/online/")
+  public List<UserWithAvatarDto> getOnlineFriends() {
+    return userService.getOnlineFriends();
+  }
 
-    @PostMapping(value = "/avatar/update/", consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
-    public Map<String, String> updateAvatar(@NotNull @RequestPart("avatar") MultipartFile avatar) {
-        return Map.of("avatar_url", userService.updateAvatar(avatar));
-    }
+  @GetMapping("/search/")
+  public List<UserWithRelationDto> searchUser(
+      @RequestParam(name = "q") String keyword,
+      @RequestParam(name = "page", defaultValue = "1") int page) {
+    return userService.searchUser(keyword, page);
+  }
 
-    @PostMapping("/cover-picture/update/")
-    public Map<String, String> updateCoverPicture(@NotNull @RequestPart("coverPicture") MultipartFile coverPicture) {
-        return Map.of("cover_picture_url", userService.updateCoverPicture(coverPicture));
-    }
+  @PostMapping(value = "/avatar/update/", consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
+  public Map<String, String> updateAvatar(@NotNull @RequestPart("avatar") MultipartFile avatar) {
+    return Map.of("avatar_url", userService.updateAvatar(avatar));
+  }
 
-    @GetMapping("/friend-suggestions/")
-    public List<UserWithAvatarDto> getFriendSuggestions(@RequestParam(value = "page", defaultValue = "1") int page) {
-        return userService.suggestFriend(page);
-    }
+  @PostMapping("/cover-picture/update/")
+  public Map<String, String> updateCoverPicture(
+      @NotNull @RequestPart("coverPicture") MultipartFile coverPicture) {
+    return Map.of("cover_picture_url", userService.updateCoverPicture(coverPicture));
+  }
 
-    @GetMapping("/media/")
-    public List<AttachmentDto> getUserMedia(
-            @NotNull @RequestParam("userId") Long userId,
-            @NotNull @RequestParam(value = "page", defaultValue = "1") int page
-    ) {
-        return userService.getUserMedia(userId, page - 1);
-    }
+  @GetMapping("/friend-suggestions/")
+  public List<UserWithAvatarDto> getFriendSuggestions(
+      @RequestParam(value = "page", defaultValue = "1") int page) {
+    return userService.suggestFriend(page);
+  }
 
-    @GetMapping("/comments/")
-    public List<UserCommentDto> getUserComments(@RequestParam("page") int page) {
-        return commentService.getUserComments(page - 1);
-    }
+  @GetMapping("/media/")
+  public List<AttachmentDto> getUserMedia(
+      @NotNull @RequestParam("userId") Long userId,
+      @NotNull @RequestParam(value = "page", defaultValue = "1") int page) {
+    return userService.getUserMedia(userId, page - 1);
+  }
 
-    @PostMapping("/block/")
-    public void blockUser(@RequestParam("userId") Long userId) {
-        userService.blockUser(userId);
-    }
+  @GetMapping("/comments/")
+  public List<UserCommentDto> getUserComments(@RequestParam("page") int page) {
+    return commentService.getUserComments(page - 1);
+  }
 
-    @PostMapping("/un-block/")
-    public void ubBlockUser(@RequestParam("userId") Long userId) {
-        userService.unBlockUser(userId);
-    }
+  @PostMapping("/block/")
+  public void blockUser(@RequestParam("userId") Long userId) {
+    userService.blockUser(userId);
+  }
+
+  @PostMapping("/un-block/")
+  public void ubBlockUser(@RequestParam("userId") Long userId) {
+    userService.unBlockUser(userId);
+  }
 }

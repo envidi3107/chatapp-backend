@@ -10,6 +10,6 @@ import lombok.NoArgsConstructor;
 @AllArgsConstructor
 @Builder
 public class TopSearchDto {
-    private String keyword;
-    private Long count;
+  private String keyword;
+  private Long count;
 }

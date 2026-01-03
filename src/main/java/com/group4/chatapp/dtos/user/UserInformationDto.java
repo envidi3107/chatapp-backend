@@ -2,50 +2,48 @@ package com.group4.chatapp.dtos.user;
 
 import com.fasterxml.jackson.annotation.JsonInclude;
 import com.group4.chatapp.models.User;
+import java.sql.Timestamp;
 import lombok.AllArgsConstructor;
 import lombok.Getter;
 import org.springframework.lang.Nullable;
-
-import java.sql.Timestamp;
 
 @Getter
 @AllArgsConstructor
 @JsonInclude(JsonInclude.Include.NON_NULL)
 public class UserInformationDto {
-    private long id;
-    private String username;
-    private String bio;
-    private Timestamp createdAt;
-    @Nullable
-    private String avatar;
+  private long id;
+  private String username;
+  private String bio;
+  private Timestamp createdAt;
+  @Nullable private String avatar;
 
-    @Nullable
-    private String coverPicture;
-    private Boolean isOnline;
-    private Timestamp lastOnline;
-    private Long totalFollowers;
-    private Long totalFollowing;
-    private Long totalPosts;
-    private Long totalFriends;
+  @Nullable private String coverPicture;
+  private Boolean isOnline;
+  private Timestamp lastOnline;
+  private Long totalFollowers;
+  private Long totalFollowing;
+  private Long totalPosts;
+  private Long totalFriends;
 
-    public UserInformationDto(User user, Long totalFollowers, Long totalFollowing, Long totalPosts, Long totalFriends) {
-        this.id = user.getId();
-        this.username = user.getUsername();
-        this.bio = user.getBio();
-        this.createdAt = user.getCreatedAt();
-        this.avatar = user.getAvatar();
-        this.coverPicture = user.getCoverPicture();
-        this.isOnline = user.getIsOnline();
-        this.lastOnline = user.getLastOnline();
-        this.totalFollowers = totalFollowers;
-        this.totalFollowing = totalFollowing;
-        this.totalPosts = totalPosts;
-        this.totalFriends = totalFriends;
-    }
+  public UserInformationDto(
+      User user, Long totalFollowers, Long totalFollowing, Long totalPosts, Long totalFriends) {
+    this.id = user.getId();
+    this.username = user.getUsername();
+    this.bio = user.getBio();
+    this.createdAt = user.getCreatedAt();
+    this.avatar = user.getAvatar();
+    this.coverPicture = user.getCoverPicture();
+    this.isOnline = user.getIsOnline();
+    this.lastOnline = user.getLastOnline();
+    this.totalFollowers = totalFollowers;
+    this.totalFollowing = totalFollowing;
+    this.totalPosts = totalPosts;
+    this.totalFriends = totalFriends;
+  }
 
-    public UserInformationDto(User user) {
-        this.username = user.getUsername();
-        this.avatar = user.getAvatar();
-        this.coverPicture = user.getCoverPicture();
-    }
+  public UserInformationDto(User user) {
+    this.username = user.getUsername();
+    this.avatar = user.getAvatar();
+    this.coverPicture = user.getCoverPicture();
+  }
 }

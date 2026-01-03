@@ -10,26 +10,26 @@ import org.springframework.web.bind.annotation.*;
 
 @RestController
 @SecurityRequirements({
-        @SecurityRequirement(name = "basicAuth"),
-        @SecurityRequirement(name = "bearerAuth")
+  @SecurityRequirement(name = "basicAuth"),
+  @SecurityRequirement(name = "bearerAuth")
 })
 @RequestMapping("/api/v1/call")
 @RequiredArgsConstructor
 public class CallController {
-    private final CallService callService;
+  private final CallService callService;
 
-    @PostMapping("/invitation/send/")
-    public void sendInvitationInChannel(@RequestBody CallInvitationSendDto dto) {
-        callService.sendInvitationToChannel(dto);
-    }
+  @PostMapping("/invitation/send/")
+  public void sendInvitationInChannel(@RequestBody CallInvitationSendDto dto) {
+    callService.sendInvitationToChannel(dto);
+  }
 
-    @PostMapping("/invitation/cancel/")
-    public void cancelCallInvitation(@RequestBody CancelCallInvitationDto dto) {
-        callService.cancelCallInvitation(dto);
-    }
+  @PostMapping("/invitation/cancel/")
+  public void cancelCallInvitation(@RequestBody CancelCallInvitationDto dto) {
+    callService.cancelCallInvitation(dto);
+  }
 
-    @PostMapping("/invitation/refuse/")
-    public void refuseCallInvitation(@RequestParam("caller") String caller) {
-        callService.refuseCallInvitation(caller);
-    }
+  @PostMapping("/invitation/refuse/")
+  public void refuseCallInvitation(@RequestParam("caller") String caller) {
+    callService.refuseCallInvitation(caller);
+  }
 }

@@ -1,23 +1,19 @@
 package com.group4.chatapp.repositories;
 
-import com.group4.chatapp.dtos.user.UserWithAvatarDto;
-import com.group4.chatapp.dtos.user.UserWithRelationDto;
 import com.group4.chatapp.models.User;
+import java.util.List;
+import java.util.Optional;
 import org.springframework.data.domain.Page;
-import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
 import org.springframework.stereotype.Repository;
 
-import java.util.List;
-import java.util.Optional;
-import java.util.stream.Stream;
-
 @Repository
 public interface UserRepository extends JpaRepository<User, Long> {
-    @Query("""
+  @Query(
+      """
       SELECT u, i
       FROM User u
       LEFT JOIN Invitation i
@@ -26,24 +22,25 @@ public interface UserRepository extends JpaRepository<User, Long> {
       WHERE u.id <> :#{#authUser.id}
         AND LOWER(u.username) LIKE LOWER(CONCAT('%', :keyword, '%'))
     """)
-    Page<Object[]> searchUsersWithInvitation(
-            @Param("authUser") User authUser,
-            @Param("keyword") String keyword,
-            Pageable pageable);
+  Page<Object[]> searchUsersWithInvitation(
+      @Param("authUser") User authUser, @Param("keyword") String keyword, Pageable pageable);
 
-    Optional<User> findByUsername(String username);
-    boolean existsByUsername(String username);
+  Optional<User> findByUsername(String username);
 
-    @Query("""
+  boolean existsByUsername(String username);
+
+  @Query(
+      """
         SELECT sender, receiver
         FROM Invitation i
         JOIN i.sender sender
         JOIN i.receiver receiver
         WHERE i.status = 'ACCEPTED' AND (sender.id = ?1 OR receiver.id = ?1) AND i.restriction = 'NONE'
     """)
-    List<Object[]> getNonBlockingFriends (Long userId);
+  List<Object[]> getNonBlockingFriends(Long userId);
 
-    @Query("""
+  @Query(
+      """
     SELECT u
     FROM User u
     WHERE u.id <> :userId
@@ -54,14 +51,15 @@ public interface UserRepository extends JpaRepository<User, Long> {
               OR (i.receiver = u AND i.sender.id = :userId)
       )
     """)
-    List<User> getUserIsNotFriend(@Param("userId") Long userId, Pageable pageable);
+  List<User> getUserIsNotFriend(@Param("userId") Long userId, Pageable pageable);
 
-    @Query("""
+  @Query(
+      """
             SELECT sender, receiver
             FROM Invitation i
             JOIN i.sender sender
             JOIN i.receiver receiver
             WHERE i.status = 'ACCEPTED' AND (sender.id = ?1 OR receiver.id = ?1) AND sender.isOnline = true AND receiver.isOnline = true
             """)
-    List<Object[]> getOnlineFriends(Long userId);
+  List<Object[]> getOnlineFriends(Long userId);
 }

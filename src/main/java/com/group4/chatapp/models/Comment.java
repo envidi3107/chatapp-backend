@@ -2,11 +2,10 @@ package com.group4.chatapp.models;
 
 import com.group4.chatapp.models.Enum.TargetType;
 import jakarta.persistence.*;
-import lombok.*;
-import org.hibernate.annotations.CreationTimestamp;
-
 import java.sql.Timestamp;
 import java.util.List;
+import lombok.*;
+import org.hibernate.annotations.CreationTimestamp;
 
 @Entity
 @Getter
@@ -15,31 +14,31 @@ import java.util.List;
 @NoArgsConstructor
 @AllArgsConstructor
 public class Comment {
-    @Id
-    @GeneratedValue(strategy = GenerationType.IDENTITY)
-    private Long id;
+  @Id
+  @GeneratedValue(strategy = GenerationType.IDENTITY)
+  private Long id;
 
-    @ManyToOne(optional = false)
-    @JoinColumn(name = "user_id")
-    private User user;
+  @ManyToOne(optional = false)
+  @JoinColumn(name = "user_id")
+  private User user;
 
-    @Enumerated(EnumType.ORDINAL)
-    @Column(name = "target_type", nullable = false)
-    private TargetType targetType;
+  @Enumerated(EnumType.ORDINAL)
+  @Column(name = "target_type", nullable = false)
+  private TargetType targetType;
 
-    @Column(name = "target_id", nullable = false)
-    private Long targetId;
+  @Column(name = "target_id", nullable = false)
+  private Long targetId;
 
-    private String content;
+  private String content;
 
-    @Column(name = "commented_at")
-    @CreationTimestamp
-    private Timestamp commentedAt;
+  @Column(name = "commented_at")
+  @CreationTimestamp
+  private Timestamp commentedAt;
 
-    @ManyToOne
-    @JoinColumn(name = "parent_comment_id")
-    private Comment parentComment;
+  @ManyToOne
+  @JoinColumn(name = "parent_comment_id")
+  private Comment parentComment;
 
-    @OneToMany(mappedBy = "parentComment", cascade = CascadeType.ALL)
-    private List<Comment> childComments;
+  @OneToMany(mappedBy = "parentComment", cascade = CascadeType.ALL)
+  private List<Comment> childComments;
 }
